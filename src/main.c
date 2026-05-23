@@ -16,7 +16,7 @@
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 2
-#define VERSION_PATCH 0
+#define VERSION_PATCH 1
 
 #define STRINGIFY0(x) #x
 #define STRINGIFY(x) STRINGIFY0(x)
@@ -69,6 +69,7 @@ typedef struct {
   uv_write_t write_req; /* reused for every banner */
   char read_buf[READ_BUFFER_SIZE];
   unsigned long rng_state; /* per‑client RNG */
+  char ip[INET6_ADDRSTRLEN];
 } client_t;
 
 static void alloc_buffer(uv_handle_t *handle, size_t suggested_size,
@@ -82,8 +83,8 @@ static void alloc_buffer(uv_handle_t *handle, size_t suggested_size,
 static void on_close(uv_handle_t *handle) {
   client_t *client = (client_t *)handle->data;
   if (--client->refcount == 0) {
+    printf("%s disconnected\n", client->ip);
     free(client);
-    printf("Client connection closed\n");
   }
 }
 
@@ -158,7 +159,22 @@ static void on_new_connection(uv_stream_t *server, int status) {
   client->refcount = 2;
 
   if (uv_accept(server, (uv_stream_t *)&client->handle) == 0) {
-    printf("Client connected\n");
+    struct sockaddr_storage addr;
+    int namelen = sizeof(addr);
+    if (uv_tcp_getpeername((uv_tcp_t *)client, (struct sockaddr *)&addr,
+                           &namelen) == 0) {
+      if (addr.ss_family == AF_INET) {
+        // IPv4
+        struct sockaddr_in *addr_in = (struct sockaddr_in *)&addr;
+        uv_ip4_name(addr_in, client->ip, sizeof(client->ip));
+        printf("%s connected\n", client->ip);
+      } else if (addr.ss_family == AF_INET6) {
+        // IPv6
+        struct sockaddr_in6 *addr_in6 = (struct sockaddr_in6 *)&addr;
+        uv_ip6_name(addr_in6, client->ip, sizeof(client->ip));
+        printf("%s connected\n", client->ip);
+      }
+    }
 
     /* Set receive buffer within the bounds of TCP MTU (~1500 bytes) */
     uv_os_fd_t fd;
