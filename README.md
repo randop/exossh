@@ -6,6 +6,10 @@ Minimalist and frugal honeypot SSH server
 - Prevent denial-of-service attacks on port 22
 - Minimize resource usage of suspicious ssh traffic and have protection against it
 
+### Requirements
+- Linux >= 3.10 with glibc >= 2.17
+- [libuv >= 1.52.0](https://github.com/libuv/libuv)
+
 ---
 
 >  Copyright © 2010 — 2026 Randolph Ledesma
